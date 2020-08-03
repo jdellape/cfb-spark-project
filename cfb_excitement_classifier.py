@@ -4,6 +4,8 @@ from pyspark.sql.functions import *
 from pyspark.sql.types import *
 from pyspark.sql import functions as F  
 from pyspark.sql import udf
+from pyspark.ml.linalg import Vectors
+from pyspark.ml.feature import StringIndexer, OneHotEncoderEstimator, OneHotEncoder
 from pyspark.ml.feature import VectorAssembler
 from pyspark.mllib.util import MLUtils
 from pyspark.ml.classification import RandomForestClassifier
@@ -119,7 +121,7 @@ if __name__ == "__main__":
 
 	df.show(10)
 
-	'''
+
 
 	#Take an attempt at a model
 
@@ -128,19 +130,24 @@ if __name__ == "__main__":
 	
 	(training_data, test_data) = df[final_columns].randomSplit([0.7, 0.3], seed=11)
 
-	assembler = VectorAssembler(inputCols=['spread','pass_rush_ratio'],outputCol="features")
+	#Encode team matchup string
+	matchup_indexer = StringIndexer(inputCol='matchup', outputCol='indexedMatchup', handleInvalid='keep')
+	matchup_encoder = OneHotEncoder(inputCol='indexedMatchup', outputCol='matchupVec')
+
+
+	assembler = VectorAssembler(inputCols=['spread','pass_rush_ratio', 'matchupVec'],outputCol="features")
 	 
 	# Train a RandomForest model.
 
 	rf = RandomForestClassifier(labelCol="high_excitement", featuresCol="features", numTrees=150)
 
-	pipeline = Pipeline(stages=[assembler, rf])
+	pipeline = Pipeline(stages=[matchup_indexer, matchup_encoder, assembler, rf])
  
 	# Train model.  This also runs the indexers.
 	model = pipeline.fit(training_data)
 
-	va = model.stages[0]
-	classifier = model.stages[1]
+	va = model.stages[-2]
+	classifier = model.stages[-1]
 
 	#display(tree) #visualize the decision tree model
 	#print(tree.toDebugString) #print the nodes of the decision tree model
@@ -172,7 +179,7 @@ if __name__ == "__main__":
 
 	# Area under ROC curve
 	print("Area under ROC = %s" % metrics.areaUnderROC)
-	'''
+	
 
 	'''
 
@@ -190,22 +197,10 @@ if __name__ == "__main__":
 
 	# Area under ROC curve
 	print("Accuracy = %s" % metrics.accuracy)
-	'''
+	
 
 
 	#Cast Conference game to true / false
 
 	#Need to return to this. Tried it and for some reason everything went to null
-
-	#df.select(col('conference_game').cast("integer"))
-
-	#Try to scale a column
-
-	'''
-
-	from pyspark.ml.feature import MinMaxScaler
-
-	scaler = MinMaxScaler(inputCol="spread", outputCol="spread_scaled")
-	scalerModel = scaler.fit(dataFrame)
-	scaledData = scalerModel.transform(dataFrame)
 	'''
