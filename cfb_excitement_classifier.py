@@ -47,15 +47,6 @@ if __name__ == "__main__":
 
 	df.drop('bet_lines').show()
 
-	#Abandoned the approach below in favor of just creating a new column within existing dataframe
-
-	#df2 = df.select(split(col("bet_lines"),"'spread'").getItem(1).alias("bet_line_split"))
-
-	#df2 = df2.select(split(col("bet_line_split"), ",").getItem(0).alias("bet_line_split")) 
-
-	#df2 = df2.select(split(col("bet_line_split"), "'").getItem(1).alias("bet_line_split"))
-
-
 	df = df.filter("spread != 'None'")
 
 	#Remove the bet_lines column from df
@@ -63,10 +54,6 @@ if __name__ == "__main__":
 
 	df = df.select(col("away_team"), col("home_team"), concat(col("away_team"), lit(" | "), col("home_team")).alias("matchup"), col("id").alias("game_id"),
 					col("excitement_index").cast(FloatType()).alias("excitement_index"), col("spread").cast(FloatType()).alias("spread"))
-
-	#Cast numeric columns to correct types
-	#df = df.withColumn("spread", df["spread"].cast(FloatType()).alias("spread"))
-	#df = df.withColumn("excitement_index", df["excitement_index"].cast(FloatType()).alias("excitement_index"))
 
 
 	def classify_excitement(x):
@@ -115,15 +102,13 @@ if __name__ == "__main__":
 
 	#Join our play data into our main df
 
-	#df = df.withColumnRenamed("id", "game_id")
-
 	df = df.join(plays_grouped, on=['game_id'], how='inner')
 
 	df.show(10)
 
 
 
-	#Take an attempt at a model
+	#Prep data for modeling
 
 	final_columns = ['pass_rush_ratio','spread', 'matchup', 'high_excitement']
 
@@ -149,13 +134,7 @@ if __name__ == "__main__":
 	va = model.stages[-2]
 	classifier = model.stages[-1]
 
-	#display(tree) #visualize the decision tree model
-	#print(tree.toDebugString) #print the nodes of the decision tree model
-
 	print(list(zip(va.getInputCols(), classifier.featureImportances)))
-
-	#print(model)
-	#print("Printing feature importances: ", rf.featureImportances)
 
 	# Predictions
 	predictions = model.transform(test_data)
@@ -168,39 +147,11 @@ if __name__ == "__main__":
 	# Select (prediction, true label) and compute test error
 	predictionsAndLabels = predictions.select(col("prediction"), col("high_excitement").cast(DoubleType()))
 	predictionsAndLabels = predictionsAndLabels.rdd
-	#print("Printing schema of predictionsAndLabels: ")
-	#predictionsAndLabels.printSchema()
 
 	metrics = BinaryClassificationMetrics(predictionsAndLabels)
-	#accuracy = evaluator.evaluate(predictions)
-	#print("Test Error = %g" % (1.0 - metrics.accuracy))
-	# Area under precision-recall curve
-	print("Area under PR = %s" % metrics.areaUnderPR)
-
-	# Area under ROC curve
-	print("Area under ROC = %s" % metrics.areaUnderROC)
-	
-
-	'''
-
-	# Compute raw scores on the test set
-	predictionAndLabels = test.map(lambda lp: (float(model.predict(lp.features)), lp.high_excitement))
-
-	# Instantiate metrics object
-	metrics = BinaryClassificationMetrics(predictionAndLabels)
 
 	# Area under precision-recall curve
 	print("Area under PR = %s" % metrics.areaUnderPR)
 
 	# Area under ROC curve
 	print("Area under ROC = %s" % metrics.areaUnderROC)
-
-	# Area under ROC curve
-	print("Accuracy = %s" % metrics.accuracy)
-	
-
-
-	#Cast Conference game to true / false
-
-	#Need to return to this. Tried it and for some reason everything went to null
-	'''
